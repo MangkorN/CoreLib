@@ -1,0 +1,6 @@
+# Enforce CRLF for C# files
+*.cs text eol=crlf
+
+# Enforce LF for assembly definitions (JSON style)
+*.asmdef text eol=lf
+*.asmref text eol=lf

@@ -1,0 +1,19 @@
+# Ignore Unity meta files (they will be auto-generated when used in a Unity project)
+*.meta
+
+# Ignore any local editor caches
+.vs/
+*.csproj
+*.unityproj
+*.sln
+*.userprefs
+
+# Ignore build or temporary files
+Temp/
+Obj/
+Build/
+Library/
+
+# Ignore OS-specific or tool-specific files
+.DS_Store
+Thumbs.db
