@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 
@@ -30,29 +31,47 @@ namespace CoreLib.Utilities
         {
             string filePath = GetFilePath(fileName, folderName);
 
-            if (!File.Exists(filePath))
+            if (TryDeserialize(filePath, out T loadData))
             {
-                Debug.LogWarning("No saved data to load. Returning a new instance.");
-                return new T();
+                Debug.Log($"Loaded '{filePath}'");
+                return loadData;
             }
 
-            using FileStream fileStream = new(filePath, FileMode.Open);
-            BinaryFormatter formatter = new();
-            T loadData;
+            Debug.LogWarning("Returning a new instance due to missing or invalid save data.");
+            return new T();       
+        }
+
+        public static bool TryLoad<T>(string fileName, out T loadedData, string folderName = null) where T : ISaveData, new()
+        {
+            string filePath = GetFilePath(fileName, folderName);
+            return TryDeserialize(filePath, out loadedData);
+        }
+
+        private static bool TryDeserialize<T>(string filePath, out T data) where T : ISaveData, new()
+        {
+            data = default;
+
+            if (!File.Exists(filePath))
+                return false;
 
             try
             {
-                loadData = (T)formatter.Deserialize(fileStream);
+                using FileStream fileStream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                BinaryFormatter formatter = new();
+                data = (T)formatter.Deserialize(fileStream);
+                return true;
+            }
+            catch (SerializationException)
+            {
+                Debug.LogWarning($"Failed to deserialize file: {filePath}");
+                return false;
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
-                Debug.LogWarning("Save data error. Returning a new instance.");
-                return new T();
+                Debug.LogWarning($"Unexpected error while loading file: {filePath}");
+                return false;
             }
-
-            Debug.Log($"Loaded '{filePath}'");
-            return loadData;         
         }
 
         public static void ClearData(string fileName, string folderName = null)

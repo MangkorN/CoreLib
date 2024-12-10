@@ -62,26 +62,110 @@ namespace CoreLib.UnitTest.Utilities
             Assert.IsTrue(File.Exists(_fullTestFilePath), "File should be saved, but it wasn't.");
         }
 
+        private void AssertValidLoadedData(TestSaveData expectedData, TestSaveData actualData)
+        {
+            Assert.IsNotNull(actualData, "Loaded data should not be null.");
+            Assert.AreEqual(expectedData.Integer, actualData.Integer, "Loaded integer data is incorrect.");
+            Assert.AreEqual(expectedData.Boolean, actualData.Boolean, "Loaded boolean data is incorrect.");
+        }
+
         [Test]
-        public void LoadData_ValidData_ReturnsCorrectData()
+        public void Load_ValidData_ReturnsCorrectData()
         {
             var testData = new TestSaveData { Integer = 123, Boolean = true };
             SaveDataUtilities.Save(testData, TEST_FILE_NAME, TEST_FOLDER_NAME);
 
             var loadedData = SaveDataUtilities.Load<TestSaveData>(TEST_FILE_NAME, TEST_FOLDER_NAME);
 
-            Assert.AreEqual(testData.Integer, loadedData.Integer, "Loaded integer data is incorrect.");
-            Assert.AreEqual(testData.Boolean, loadedData.Boolean, "Loaded boolean data is incorrect.");
+            AssertValidLoadedData(testData, loadedData);
         }
 
         [Test]
-        public void LoadData_FileDoesNotExist_ReturnsNewInstance()
+        public void Load_FileDoesNotExist_ReturnsNewInstance()
         {
             var loadedData = SaveDataUtilities.Load<TestSaveData>(TEST_FILE_NAME, TEST_FOLDER_NAME);
 
             Assert.IsNotNull(loadedData, "Loaded data should not be null.");
-            Assert.AreEqual(default(int), loadedData.Integer, $"Loaded integer data({loadedData.Integer}) should be default({default(int)}).");
-            Assert.AreEqual(default(bool), loadedData.Boolean, $"Loaded boolean data({loadedData.Boolean}) should be default({default(bool)}).");
+            Assert.AreEqual(default(int), loadedData.Integer, "Loaded integer data should be default.");
+            Assert.AreEqual(default(bool), loadedData.Boolean, "Loaded boolean data should be default.");
+        }
+
+        [Test]
+        public void Load_ReadOnlyFile_ReturnsCorrectData()
+        {
+            var testData = new TestSaveData { Integer = 123, Boolean = true };
+            SaveDataUtilities.Save(testData, TEST_FILE_NAME, TEST_FOLDER_NAME);
+
+            string filePath = Path.Combine(SaveDataUtilities.GetFolderPath(TEST_FOLDER_NAME), TEST_FILE_NAME);
+            File.SetAttributes(filePath, FileAttributes.ReadOnly);
+
+            try
+            {
+                var loadedData = SaveDataUtilities.Load<TestSaveData>(TEST_FILE_NAME, TEST_FOLDER_NAME);
+                AssertValidLoadedData(testData, loadedData);
+            }
+            finally
+            {
+                File.SetAttributes(filePath, FileAttributes.Normal);
+            }
+        }
+
+        [Test]
+        public void TryLoad_FileExistsAndIsValid_ReturnsTrueAndOutputsData()
+        {
+            var testData = new TestSaveData { Integer = 123, Boolean = true };
+            SaveDataUtilities.Save(testData, TEST_FILE_NAME, TEST_FOLDER_NAME);
+
+            bool result = SaveDataUtilities.TryLoad(TEST_FILE_NAME, out TestSaveData loadedData, TEST_FOLDER_NAME);
+
+            Assert.IsTrue(result, "TryLoad should return true when the file exists and is valid.");
+            AssertValidLoadedData(testData, loadedData);
+        }
+
+        [Test]
+        public void TryLoad_FileDoesNotExist_ReturnsFalseAndOutputsDefault()
+        {
+            bool result = SaveDataUtilities.TryLoad(TEST_FILE_NAME, out TestSaveData loadedData, TEST_FOLDER_NAME);
+
+            Assert.IsFalse(result, "TryLoad should return false when the file does not exist.");
+            Assert.IsNull(loadedData, "Loaded data should be null when the file does not exist.");
+        }
+
+        [Test]
+        public void TryLoad_FileExistsButIsInvalid_ReturnsFalseAndOutputsDefault()
+        {
+            string invalidFilePath = Path.Combine(SaveDataUtilities.GetFolderPath(TEST_FOLDER_NAME), TEST_FILE_NAME);
+
+            // Create an invalid file (e.g., not serialized data)
+            Directory.CreateDirectory(SaveDataUtilities.GetFolderPath(TEST_FOLDER_NAME));
+            File.WriteAllText(invalidFilePath, "This is not valid serialized data.");
+
+            bool result = SaveDataUtilities.TryLoad(TEST_FILE_NAME, out TestSaveData loadedData, TEST_FOLDER_NAME);
+
+            Assert.IsFalse(result, "TryLoad should return false when the file exists but is invalid.");
+            Assert.IsNull(loadedData, "Loaded data should be null when the file is invalid.");
+        }
+
+        [Test]
+        public void TryLoad_ReadOnlyFile_ReturnsTrueAndOutputsData()
+        {
+            var testData = new TestSaveData { Integer = 123, Boolean = true };
+            SaveDataUtilities.Save(testData, TEST_FILE_NAME, TEST_FOLDER_NAME);
+
+            string filePath = Path.Combine(SaveDataUtilities.GetFolderPath(TEST_FOLDER_NAME), TEST_FILE_NAME);
+            File.SetAttributes(filePath, FileAttributes.ReadOnly);
+
+            try
+            {
+                bool result = SaveDataUtilities.TryLoad(TEST_FILE_NAME, out TestSaveData loadedData, TEST_FOLDER_NAME);
+
+                Assert.IsTrue(result, "TryLoad should return true when the file exists and is valid, even if read-only.");
+                AssertValidLoadedData(testData, loadedData);
+            }
+            finally
+            {
+                File.SetAttributes(filePath, FileAttributes.Normal);
+            }
         }
 
         [Test]
